@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eddy vs You: Typing Showdown</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --field: #2E5E3E;
+    --board: #14271C;
+    --bulb: #FFB547;
+    --chalk: #F4F6F1;
+    --dim: #8FA898;
+    --bad: #FF7A59;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--field);
+    background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.035) 0 80px, transparent 80px 160px);
+    color: var(--chalk);
+    font-family: "Work Sans", system-ui, sans-serif;
+  }
+  main { max-width: 880px; margin: 0 auto; padding: 36px 16px 56px; }
+
+  /* ---------- Scoreboard ---------- */
+  .board {
+    background: var(--board);
+    border: 6px solid #0C1A12;
+    border-radius: 10px;
+    padding: 18px 22px 22px;
+    box-shadow: 0 14px 0 #1F4430;
+  }
+  .board h1 {
+    font-family: "Big Shoulders Display", sans-serif; font-weight: 900;
+    font-size: clamp(26px, 4.6vw, 40px); letter-spacing: 0.02em;
+    text-align: center; margin: 0 0 14px; color: var(--chalk);
+  }
+  .sides { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+  .side { text-align: center; }
+  .side .name { font-family: "Big Shoulders Display", sans-serif; font-weight: 700; font-size: 24px; color: var(--dim); }
+  .side .num {
+    font-family: "Big Shoulders Display", sans-serif; font-weight: 900;
+    font-size: clamp(64px, 13vw, 120px); line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--bulb);
+    text-shadow: 0 0 18px rgba(255, 181, 71, 0.45);
+  }
+  .side.you .num { color: var(--chalk); text-shadow: 0 0 18px rgba(244, 246, 241, 0.3); }
+  .side.you.ahead .num { color: var(--bulb); text-shadow: 0 0 18px rgba(255, 181, 71, 0.45); }
+  .side .unit { color: var(--dim); font-size: 14px; }
+  .vs { font-family: "Big Shoulders Display", sans-serif; font-weight: 700; font-size: 28px; color: var(--dim); }
+  .clock { display: flex; justify-content: center; gap: 28px; margin-top: 14px; color: var(--dim); font-size: 15px; font-variant-numeric: tabular-nums; }
+  .clock b { color: var(--chalk); font-weight: 600; }
+
+  /* ---------- Typing panel ---------- */
+  .panel { margin-top: 40px; }
+  #sentence {
+    font-size: clamp(28px, 4.6vw, 42px); line-height: 1.45;
+    white-space: pre-wrap; user-select: none;
+    color: var(--dim); margin: 0 0 16px;
+  }
+  .ch.ok  { color: var(--chalk); }
+  .ch.bad { color: var(--bad); text-decoration: line-through; }
+  .ch.cur { box-shadow: inset 0 -3px 0 var(--bulb); color: var(--chalk); }
+  #input {
+    width: 100%; font: inherit; font-size: clamp(22px, 3.2vw, 30px);
+    padding: 18px 20px; border-radius: 10px;
+    resize: none; display: block; line-height: 1.4;
+    border: 2px solid #4C7A5B; background: #24503A; color: var(--chalk);
+  }
+  #input::placeholder { color: var(--dim); }
+  #input:focus { outline: none; border-color: var(--bulb); }
+  #input:disabled { opacity: 0.6; }
+
+  button {
+    margin-top: 18px;
+    font-family: "Big Shoulders Display", sans-serif; font-weight: 900; font-size: 22px; letter-spacing: 0.03em;
+    background: var(--bulb); color: var(--board);
+    border: 0; border-radius: 8px; padding: 10px 28px; cursor: pointer;
+  }
+  button:hover { background: #FFC86E; }
+  button:focus-visible, #input:focus-visible { outline: 3px solid var(--chalk); outline-offset: 3px; }
+
+  /* ---------- Result ---------- */
+  #result { display: none; margin-top: 36px; background: var(--board); border-radius: 10px; padding: 24px; }
+  #result h2 { font-family: "Big Shoulders Display", sans-serif; font-weight: 900; font-size: clamp(26px, 4.4vw, 38px); margin: 0 0 6px; }
+  #result.win h2, #result.tie h2 { color: var(--bulb); }
+  #result p.say { font-size: 18px; margin: 0 0 22px; max-width: 60ch; }
+  .row { display: grid; grid-template-columns: 170px 1fr 56px; gap: 12px; align-items: center; margin: 8px 0; font-size: 15px; }
+  .row .bar { height: 12px; background: #24503A; border-radius: 2px; overflow: hidden; }
+  .row .bar i { display: block; height: 100%; background: var(--dim); }
+  .row.you .bar i { background: var(--chalk); }
+  .row.eddy .bar i { background: var(--bulb); }
+  .row .n { text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
+  #result .rank { display: inline-block; font-family: "Big Shoulders Display", sans-serif; font-weight: 700; font-size: 20px; background: var(--bulb); color: var(--board); padding: 2px 12px; border-radius: 4px; margin: 0 0 10px; }
+  #result p.best { color: var(--dim); font-size: 15px; margin: -12px 0 20px; }
+  .source { font-size: 13px; color: var(--dim); margin-top: 16px; }
+  .source a { color: var(--dim); }
+
+  footer { margin-top: 44px; text-align: center; color: #A9C3B1; font-size: 14px; }
+
+  @media (max-width: 560px) {
+    .row { grid-template-columns: 110px 1fr 48px; font-size: 14px; }
+    .side .name { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <section class="board" aria-label="Scoreboard">
+    <h1>Typing showdown</h1>
+    <div class="sides">
+      <div class="side eddy"><div class="name">Eddy</div><div class="num" id="eddyNum"></div><div class="unit">wpm average</div></div>
+      <div class="vs">vs</div>
+      <div class="side you" id="youSide"><div class="name">You</div><div class="num" id="wpm">0</div><div class="unit">wpm live</div></div>
+    </div>
+    <div class="clock"><span>Time <b id="time">0.0</b>s</span><span>Accuracy <b id="acc">100</b>%</span></div>
+  </section>
+
+  <section class="panel">
+    <div id="sentence"></div>
+    <textarea id="input" rows="2" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Start typing here" aria-label="Type the sentence"></textarea>
+    <button id="again">Rematch</button>
+  </section>
+
+  <section id="result" aria-live="polite">
+    <p class="rank" id="rank"></p>
+    <h2 id="vTitle"></h2>
+    <p class="say" id="vText"></p>
+    <p class="best" id="best"></p>
+    <div id="rows"></div>
+    <p class="source">Average and fastest typist: Aalto University and University of Cambridge study of 168,000 typists, mostly American (<a href="https://www.eurekalert.org/news-releases/569762" target="_blank" rel="noopener">2018</a>). Job target: common requirement in office and IT job postings (<a href="https://www.typelit.io/blog/typing-speed-requirements" target="_blank" rel="noopener">TypeLit</a>).</p>
+  </section>
+
+  <footer>Built by Eddy</footer>
+</main>
+
+<script>
+// ================= Shared typing-test logic =================
+
+// Eddy's average from 5 runs of this same test: 35, 21, 33, 40, 47
+const EDDY_WPM = 35;
+
+// Real-world comparisons (2018 Aalto University / Cambridge study, 168,000 typists, 68% American)
+const AVERAGE_WPM = 52;
+const FASTEST_WPM = 120;
+const JOB_WPM = 60;          // common target in office / IT job postings
+const MIN_ACCURACY = 85;     // below this, a "win" doesn't count
+
+// 50 sentences about Windows Server
+const WINDOWS_SENTENCES = [
+  "Active Directory stores users, groups, and computers for a domain.",
+  "A domain controller checks your password when you log in.",
+  "DNS turns easy names into the IP addresses computers use.",
+  "DHCP hands out IP addresses so you never set them by hand.",
+  "Group Policy pushes the same settings to every computer at once.",
+  "PowerShell lets admins automate tasks with simple scripts.",
+  "Server Manager is the dashboard for roles and features.",
+  "Hyper-V lets one server run many virtual machines.",
+  "Docker packages an app and everything it needs into a container.",
+  "Windows Admin Center manages servers right from a web browser.",
+  "Event Viewer keeps logs of errors, warnings, and logins.",
+  "An A record maps a host name to an IPv4 address.",
+  "An AAAA record maps a host name to an IPv6 address.",
+  "An MX record tells the world where to send your email.",
+  "A PTR record turns an IP address back into a name.",
+  "A secondary DNS zone is a read-only copy of the primary.",
+  "Zone transfers copy DNS records from one server to another.",
+  "DHCP failover keeps leases working if one server goes down.",
+  "A DHCP reservation always gives a device the same address.",
+  "Exclusions stop DHCP from leasing addresses you set by hand.",
+  "NTFS permissions control who can read or change a file.",
+  "Share permissions apply when files are opened over the network.",
+  "BitLocker encrypts the whole drive to protect lost laptops.",
+  "Windows Defender Firewall blocks traffic you did not allow.",
+  "Remote Desktop uses port 3389, so never leave it open to all.",
+  "WinRM lets you run PowerShell commands on remote servers.",
+  "Server Core has no desktop, which makes it smaller and safer.",
+  "The Best Practices Analyzer scans roles for common mistakes.",
+  "An organizational unit groups users so policies are easier.",
+  "Kerberos is the protocol Active Directory uses to log you in.",
+  "A forest is the top level of an Active Directory design.",
+  "A global catalog holds a searchable copy of every object in the forest.",
+  "File Server Resource Manager can set quotas on folders.",
+  "Storage Spaces groups disks together into one larger pool.",
+  "Failover clustering keeps services running if a node fails.",
+  "MPIO gives a server more than one path to its storage.",
+  "iSCSI lets a server use storage over a normal network.",
+  "Windows Server Update Services approves patches before rollout.",
+  "Task Scheduler can run a script at the same time every day.",
+  "The registry stores settings for Windows and its programs.",
+  "Performance Monitor tracks CPU, memory, and disk over time.",
+  "Run sfc /scannow to check for damaged system files.",
+  "Running ipconfig /flushdns clears the DNS cache on a computer.",
+  "The nslookup command tests whether a DNS server can resolve a name.",
+  "A static IP address is best for servers that others rely on.",
+  "Containers share the host kernel, so they start in seconds.",
+  "Least privilege means users get only the access they need.",
+  "A service account runs an app without using a real person's login.",
+  "Roles add big jobs to a server, like DNS or web hosting.",
+  "IIS is the web server that comes built into Windows Server."
+];
+
+// 50 sentences about general hacking and security knowledge
+const HACKING_SENTENCES = [
+  "Phishing emails trick people into clicking bad links.",
+  "A strong password is long, random, and never used twice.",
+  "Multi-factor authentication blocks most account takeover attacks.",
+  "Ransomware encrypts files and demands payment to unlock them.",
+  "A firewall filters traffic based on rules you set.",
+  "Nmap scans a network to find hosts and open ports.",
+  "Wireshark captures packets so you can see network traffic.",
+  "A hash turns data into a fixed string that cannot be reversed.",
+  "Salting a password makes stolen hashes much harder to crack.",
+  "Hashcat and John the Ripper test how weak passwords are.",
+  "Social engineering hacks people instead of computers.",
+  "A zero-day is a flaw the vendor has not patched yet.",
+  "SQL injection sneaks database commands into a web form.",
+  "Cross-site scripting runs an attacker's code in your browser.",
+  "A VPN encrypts your traffic when you use public Wi-Fi.",
+  "HTTPS uses TLS to encrypt data between you and a website.",
+  "Port 22 is SSH, the secure way to log in to remote systems.",
+  "Port 443 carries encrypted web traffic over HTTPS.",
+  "A brute force attack tries every password until one works.",
+  "Account lockout slows down attackers who guess passwords.",
+  "Malware is any software built to harm a computer.",
+  "A keylogger secretly records everything you type.",
+  "Antivirus looks for known malware by its signature.",
+  "A honeypot is a fake system built to catch attackers.",
+  "Red teams attack, blue teams defend, and purple teams share notes.",
+  "Penetration testers break in with permission to find weak spots.",
+  "Always get written permission before you test a system.",
+  "The CIA triad stands for confidentiality, integrity, and availability.",
+  "Kali Linux comes packed with tools for security testing.",
+  "Metasploit helps testers check if a system can be exploited.",
+  "A man-in-the-middle attack secretly sits between two devices.",
+  "A denial of service attack floods a target until it goes down.",
+  "A botnet is a network of infected computers under one control.",
+  "Patching quickly closes holes before attackers find them.",
+  "Shoulder surfing is stealing a password by watching someone type.",
+  "Tailgating is following someone through a locked door.",
+  "Encryption scrambles data so only the right key can read it.",
+  "Public key cryptography uses a public key and a private key.",
+  "A digital certificate proves a website is who it claims to be.",
+  "Logs help investigators rebuild what happened after an attack.",
+  "A SIEM collects logs from many systems in one place.",
+  "Least privilege limits the damage when an account is hacked.",
+  "Offline backups survive a ransomware attack.",
+  "Codes from an authenticator app are safer than text messages.",
+  "Never plug in a USB drive you found in a parking lot.",
+  "Capture the flag games are a fun way to practice hacking legally.",
+  "The National Cyber League lets students compete in security challenges.",
+  "OSINT means gathering information from public sources.",
+  "A vulnerability scanner checks systems for known weaknesses.",
+  "Always lock your computer before you walk away from your desk."
+];
+
+const SENTENCES = WINDOWS_SENTENCES.concat(HACKING_SENTENCES);
+
+// ---------- No repeats ----------
+// Sentences come out of a shuffled "bag". Nothing repeats until all 100 have been used.
+// The bag is saved in the browser, so reloading the page doesn't bring old sentences back.
+const BAG_KEY = "eddy-typing-bag";
+const RECENT = 8;   // when a new bag starts, keep the last 8 sentences out of its first 8 spots
+
+function shuffle(list) {
+  for (let i = list.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list;
+}
+
+let bag = [], recent = [];
+try {
+  const saved = JSON.parse(localStorage.getItem(BAG_KEY));
+  if (saved && Array.isArray(saved.bag) && saved.total === SENTENCES.length) { bag = saved.bag; recent = saved.recent || []; }
+} catch (e) { /* storage blocked: the bag just lives in memory */ }
+
+function nextSentence() {
+  if (bag.length === 0) {
+    bag = shuffle([...Array(SENTENCES.length).keys()]);
+    // move anything used recently away from the front of the new bag
+    const fresh = bag.filter(i => !recent.includes(i));
+    const used  = bag.filter(i => recent.includes(i));
+    bag = fresh.slice(0, RECENT).concat(used, fresh.slice(RECENT));
+  }
+  const index = bag.shift();
+  recent = recent.concat(index).slice(-RECENT);
+  try { localStorage.setItem(BAG_KEY, JSON.stringify({ bag, recent, total: SENTENCES.length })); } catch (e) {}
+  return SENTENCES[index];
+}
+
+// Decide what to tell the person once they finish
+// The message depends on how much you won or lost by (diff = your WPM minus Eddy's)
+function verdict(wpm, accuracy) {
+  const diff = wpm - EDDY_WPM;
+  if (accuracy < MIN_ACCURACY) {
+    return { tone: "sloppy", title: "Fast fingers, messy keys.",
+      text: `${wpm} WPM at ${accuracy}% accuracy doesn't count. Eddy only accepts clean wins.` };
+  }
+  if (Math.abs(diff) <= 1) {
+    return { tone: "tie", title: "Dead even with Eddy.",
+      text: `${wpm} WPM. This can't end like this. Run it back.` };
+  }
+  if (diff >= 20) {
+    return { tone: "win", title: "Okay, that's just disrespectful.",
+      text: `${wpm} WPM? You didn't beat Eddy, you lapped him. Please don't tell anyone.` };
+  }
+  if (diff >= 6) {
+    return { tone: "win", title: "Nice work! You're faster than Eddy.",
+      text: `${wpm} WPM puts you among the best typists here. He's not happy about it.` };
+  }
+  if (diff >= 2) {
+    return { tone: "win", title: "You got him, but just barely.",
+      text: `${wpm} WPM vs Eddy's ${EDDY_WPM}. One bad round and he takes it back.` };
+  }
+  if (diff <= -20) {
+    return { tone: "lose", title: "Are you typing with your elbows?",
+      text: `${wpm} WPM. Eddy types ${EDDY_WPM}. Practice up and come back.` };
+  }
+  if (diff <= -6) {
+    return { tone: "lose", title: "Not too bad, but Eddy is faster.",
+      text: `${wpm} WPM vs his ${EDDY_WPM}. Honestly shocking. Better get to work, my friend.` };
+  }
+  return { tone: "lose", title: "So close!",
+    text: `${wpm} WPM. Eddy edges you out by a hair. You're one round away.` };
+}
+
+// A fun title for your speed
+function rankFor(wpm) {
+  if (wpm >= 90) return "Elite Hacker";
+  if (wpm >= 70) return "Pen Tester";
+  if (wpm >= 50) return "SysAdmin";
+  if (wpm >= 35) return "Help Desk Hero";
+  if (wpm >= 20) return "Script Kiddie";
+  return "Keyboard Rookie";
+}
+
+// Your best clean score, saved in this browser only
+const BEST_KEY = "eddy-typing-best";
+function recordBest(wpm, accuracy) {
+  let best = 0;
+  try { best = parseInt(localStorage.getItem(BEST_KEY), 10) || 0; } catch (e) {}
+  if (accuracy < MIN_ACCURACY) return { best, isNew: false };   // sloppy runs don't count
+  const isNew = wpm > best;
+  if (isNew) {
+    best = wpm;
+    try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) {}
+  }
+  return { best, isNew };
+}
+
+// Bars for "how you compare"
+function comparisonRows(wpm) {
+  return [
+    { label: "You", wpm, you: true },
+    { label: "Eddy", wpm: EDDY_WPM, eddy: true },
+    { label: "Average typist", wpm: AVERAGE_WPM },
+    { label: "Office / IT job target", wpm: JOB_WPM },
+    { label: "Fastest in the study", wpm: FASTEST_WPM }
+  ];
+}
+
+// The engine: handles the sentence, colouring letters, timing and scoring.
+// Each design plugs in its own look through the callbacks.
+function TypingTest({ sentenceEl, inputEl, onStart, onTick, onFinish, onReset }) {
+  let target = "", startTime = null, timer = null, finished = false;
+
+  const pick = nextSentence;
+
+  function draw() {
+    const typed = inputEl.value;
+    let html = "";
+    for (let i = 0; i < target.length; i++) {
+      let cls = "ch";
+      if (i < typed.length) cls += typed[i] === target[i] ? " ok" : " bad";
+      else if (i === typed.length) cls += " cur";
+      html += `<span class="${cls}">${target[i]}</span>`;
+    }
+    sentenceEl.innerHTML = html;
+  }
+
+  function stats() {
+    const typed = inputEl.value;
+    const seconds = startTime ? (Date.now() - startTime) / 1000 : 0;
+    let correct = 0;
+    for (let i = 0; i < typed.length; i++) if (typed[i] === target[i]) correct++;
+    const minutes = seconds / 60;
+    const wpm = minutes > 0 ? Math.round((correct / 5) / minutes) : 0;   // 1 word = 5 characters
+    const accuracy = typed.length ? Math.round((correct / typed.length) * 100) : 100;
+    return { wpm, accuracy, seconds, progress: Math.min(typed.length / target.length, 1), target };
+  }
+
+  function reset() {
+    target = pick();
+    startTime = null; finished = false;
+    clearInterval(timer);
+    inputEl.value = ""; inputEl.disabled = false;
+    draw();
+    onReset && onReset(stats());
+    inputEl.focus();
+  }
+
+  inputEl.addEventListener("input", () => {
+    if (finished) return;
+    if (inputEl.value.length > target.length) inputEl.value = inputEl.value.slice(0, target.length);
+    if (startTime === null) {
+      startTime = Date.now();
+      onStart && onStart();
+      timer = setInterval(() => onTick && onTick(stats()), 100);
+    }
+    draw();
+    const s = stats();
+    onTick && onTick(s);
+    if (inputEl.value.length >= target.length) {
+      finished = true;
+      clearInterval(timer);
+      inputEl.disabled = true;
+      const v = verdict(s.wpm, s.accuracy);
+      v.rank = rankFor(s.wpm);
+      const b = recordBest(s.wpm, s.accuracy);
+      v.bestLine = b.isNew ? `New personal best: ${b.best} WPM` : (b.best ? `Your best: ${b.best} WPM` : "");
+      onFinish && onFinish(s, v);
+    }
+  });
+
+  return { reset, stats };
+}
+
+
+const $ = (id) => document.getElementById(id);
+$("eddyNum").textContent = EDDY_WPM;
+const result = $("result");
+const youSide = $("youSide");
+
+const test = TypingTest({
+  sentenceEl: $("sentence"),
+  inputEl: $("input"),
+  onTick(s) {
+    $("wpm").textContent = s.wpm;
+    $("acc").textContent = s.accuracy;
+    $("time").textContent = s.seconds.toFixed(1);
+    youSide.classList.toggle("ahead", s.wpm > EDDY_WPM);
+  },
+  onFinish(s, v) {
+    $("vTitle").textContent = v.title;
+    $("vText").textContent = v.text;
+    $("rank").textContent = v.rank;
+    $("best").textContent = v.bestLine;
+    const max = Math.max(FASTEST_WPM, s.wpm);
+    $("rows").innerHTML = comparisonRows(s.wpm).map(r =>
+      `<div class="row${r.you ? " you" : ""}${r.eddy ? " eddy" : ""}"><span>${r.label}</span><span class="bar"><i style="width:${Math.round(r.wpm / max * 100)}%"></i></span><span class="n">${r.wpm}</span></div>`
+    ).join("");
+    result.className = v.tone;
+    result.style.display = "block";
+  },
+  onReset() {
+    $("wpm").textContent = "0"; $("acc").textContent = "100"; $("time").textContent = "0.0";
+    youSide.classList.remove("ahead");
+    result.style.display = "none";
+  }
+});
+// The sentence never needs Enter, so block it (keeps the box to the sentence only)
+$("input").addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
+$("again").addEventListener("click", test.reset);
+test.reset();
+</script>
+</body>
+</html>
