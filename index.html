@@ -56,8 +56,20 @@
   .clock { display: flex; justify-content: center; gap: 28px; margin-top: 14px; color: var(--dim); font-size: 15px; font-variant-numeric: tabular-nums; }
   .clock b { color: var(--chalk); font-weight: 600; }
 
+  /* ---------- Name ---------- */
+  .who { margin-top: 32px; display: none; }
+  .who label { display: block; font-size: 15px; color: var(--dim); margin-bottom: 6px; }
+  #playerName {
+    width: min(100%, 320px); font: inherit; font-size: 18px;
+    padding: 10px 14px; border-radius: 8px;
+    border: 2px solid #4C7A5B; background: #24503A; color: var(--chalk);
+  }
+  #playerName:focus { outline: none; border-color: var(--bulb); }
+  #nameHint { font-size: 14px; color: var(--dim); margin: 6px 0 0; min-height: 20px; }
+  #nameHint.bad { color: var(--bad); }
+
   /* ---------- Typing panel ---------- */
-  .panel { margin-top: 40px; }
+  .panel { margin-top: 28px; }
   #sentence {
     font-size: clamp(28px, 4.6vw, 42px); line-height: 1.45;
     white-space: pre-wrap; user-select: none;
@@ -83,7 +95,7 @@
     border: 0; border-radius: 8px; padding: 10px 28px; cursor: pointer;
   }
   button:hover { background: #FFC86E; }
-  button:focus-visible, #input:focus-visible { outline: 3px solid var(--chalk); outline-offset: 3px; }
+  button:focus-visible, #input:focus-visible, #playerName:focus-visible { outline: 3px solid var(--chalk); outline-offset: 3px; }
 
   /* ---------- Result ---------- */
   #result { display: none; margin-top: 36px; background: var(--board); border-radius: 10px; padding: 24px; }
@@ -97,10 +109,27 @@
   .row.eddy .bar i { background: var(--bulb); }
   .row .n { text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
   #result .rank { display: inline-block; font-family: "Big Shoulders Display", sans-serif; font-weight: 700; font-size: 20px; background: var(--bulb); color: var(--board); padding: 2px 12px; border-radius: 4px; margin: 0 0 10px; }
-  #result p.best { color: var(--dim); font-size: 15px; margin: -12px 0 20px; }
+  #result p.best { color: var(--dim); font-size: 15px; margin: -12px 0 6px; }
+  #result p.saved { font-size: 16px; margin: 0 0 20px; color: var(--bulb); }
+  #result p.saved.no { color: var(--dim); }
   .source { font-size: 13px; color: var(--dim); margin-top: 16px; }
   .source a { color: var(--dim); }
 
+  /* ---------- Leaderboard ---------- */
+  #leaders { display: none; margin-top: 36px; background: var(--board); border-radius: 10px; padding: 22px 24px; }
+  #leaders h2 { font-family: "Big Shoulders Display", sans-serif; font-weight: 900; font-size: 30px; margin: 0 0 4px; }
+  #leaders .sub { color: var(--dim); font-size: 14px; margin: 0 0 14px; }
+  #board { list-style: none; margin: 0; padding: 0; }
+  #board li { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: baseline; padding: 9px 0; border-top: 1px solid #24503A; font-size: 17px; }
+  #board li .pos { font-family: "Big Shoulders Display", sans-serif; font-weight: 900; font-size: 22px; color: var(--dim); }
+  #board li .who-name { overflow-wrap: anywhere; }
+  #board li .score { font-variant-numeric: tabular-nums; }
+  #board li.eddy .who-name, #board li.eddy .score { color: var(--bulb); }
+  #board li.me { background: #1E3A2A; }
+  #board li .rounds { color: var(--dim); font-size: 13px; margin-left: 6px; }
+  #board .empty { color: var(--dim); }
+
+  .error { margin-top: 28px; color: var(--bad); font-size: 17px; }
   footer { margin-top: 44px; text-align: center; color: #A9C3B1; font-size: 14px; }
 
   @media (max-width: 560px) {
@@ -121,10 +150,17 @@
     <div class="clock"><span>Time <b id="time">0.0</b>s</span><span>Accuracy <b id="acc">100</b>%</span></div>
   </section>
 
+  <section class="who" id="who">
+    <label for="playerName">Your name for the leaderboard</label>
+    <input id="playerName" type="text" maxlength="20" autocomplete="nickname" spellcheck="false" placeholder="e.g. Mike">
+    <p id="nameHint"></p>
+  </section>
+
   <section class="panel">
     <div id="sentence"></div>
     <textarea id="input" rows="2" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Start typing here" aria-label="Type the sentence"></textarea>
     <button id="again">Rematch</button>
+    <p class="error" id="loadError" hidden></p>
   </section>
 
   <section id="result" aria-live="polite">
@@ -132,15 +168,22 @@
     <h2 id="vTitle"></h2>
     <p class="say" id="vText"></p>
     <p class="best" id="best"></p>
+    <p class="saved" id="saved"></p>
     <div id="rows"></div>
     <p class="source">Average and fastest typist: Aalto University and University of Cambridge study of 168,000 typists, mostly American (<a href="https://www.eurekalert.org/news-releases/569762" target="_blank" rel="noopener">2018</a>). Job target: common requirement in office and IT job postings (<a href="https://www.typelit.io/blog/typing-speed-requirements" target="_blank" rel="noopener">TypeLit</a>).</p>
+  </section>
+
+  <section id="leaders" aria-live="polite">
+    <h2>Leaderboard</h2>
+    <p class="sub">Best clean run per player. Can you get above Eddy?</p>
+    <ol id="board"></ol>
   </section>
 
   <footer>Built by Eddy</footer>
 </main>
 
 <script>
-// ================= Shared typing-test logic =================
+// ================= Settings =================
 
 // Eddy's average from 5 runs of this same test: 35, 21, 33, 40, 47
 const EDDY_WPM = 35;
@@ -151,121 +194,17 @@ const FASTEST_WPM = 120;
 const JOB_WPM = 60;          // common target in office / IT job postings
 const MIN_ACCURACY = 85;     // below this, a "win" doesn't count
 
-// 50 sentences about Windows Server
-const WINDOWS_SENTENCES = [
-  "Active Directory stores users, groups, and computers for a domain.",
-  "A domain controller checks your password when you log in.",
-  "DNS turns easy names into the IP addresses computers use.",
-  "DHCP hands out IP addresses so you never set them by hand.",
-  "Group Policy pushes the same settings to every computer at once.",
-  "PowerShell lets admins automate tasks with simple scripts.",
-  "Server Manager is the dashboard for roles and features.",
-  "Hyper-V lets one server run many virtual machines.",
-  "Docker packages an app and everything it needs into a container.",
-  "Windows Admin Center manages servers right from a web browser.",
-  "Event Viewer keeps logs of errors, warnings, and logins.",
-  "An A record maps a host name to an IPv4 address.",
-  "An AAAA record maps a host name to an IPv6 address.",
-  "An MX record tells the world where to send your email.",
-  "A PTR record turns an IP address back into a name.",
-  "A secondary DNS zone is a read-only copy of the primary.",
-  "Zone transfers copy DNS records from one server to another.",
-  "DHCP failover keeps leases working if one server goes down.",
-  "A DHCP reservation always gives a device the same address.",
-  "Exclusions stop DHCP from leasing addresses you set by hand.",
-  "NTFS permissions control who can read or change a file.",
-  "Share permissions apply when files are opened over the network.",
-  "BitLocker encrypts the whole drive to protect lost laptops.",
-  "Windows Defender Firewall blocks traffic you did not allow.",
-  "Remote Desktop uses port 3389, so never leave it open to all.",
-  "WinRM lets you run PowerShell commands on remote servers.",
-  "Server Core has no desktop, which makes it smaller and safer.",
-  "The Best Practices Analyzer scans roles for common mistakes.",
-  "An organizational unit groups users so policies are easier.",
-  "Kerberos is the protocol Active Directory uses to log you in.",
-  "A forest is the top level of an Active Directory design.",
-  "A global catalog holds a searchable copy of every object in the forest.",
-  "File Server Resource Manager can set quotas on folders.",
-  "Storage Spaces groups disks together into one larger pool.",
-  "Failover clustering keeps services running if a node fails.",
-  "MPIO gives a server more than one path to its storage.",
-  "iSCSI lets a server use storage over a normal network.",
-  "Windows Server Update Services approves patches before rollout.",
-  "Task Scheduler can run a script at the same time every day.",
-  "The registry stores settings for Windows and its programs.",
-  "Performance Monitor tracks CPU, memory, and disk over time.",
-  "Run sfc /scannow to check for damaged system files.",
-  "Running ipconfig /flushdns clears the DNS cache on a computer.",
-  "The nslookup command tests whether a DNS server can resolve a name.",
-  "A static IP address is best for servers that others rely on.",
-  "Containers share the host kernel, so they start in seconds.",
-  "Least privilege means users get only the access they need.",
-  "A service account runs an app without using a real person's login.",
-  "Roles add big jobs to a server, like DNS or web hosting.",
-  "IIS is the web server that comes built into Windows Server."
-];
+const NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 ._-]{1,19}$/;   // same rule the server uses
+let SENTENCES = [];          // loaded from sentences.json (50 Windows Server + 50 hacking)
+let api = false;             // true when the leaderboard backend is there (not on GitHub Pages)
 
-// 50 sentences about general hacking and security knowledge
-const HACKING_SENTENCES = [
-  "Phishing emails trick people into clicking bad links.",
-  "A strong password is long, random, and never used twice.",
-  "Multi-factor authentication blocks most account takeover attacks.",
-  "Ransomware encrypts files and demands payment to unlock them.",
-  "A firewall filters traffic based on rules you set.",
-  "Nmap scans a network to find hosts and open ports.",
-  "Wireshark captures packets so you can see network traffic.",
-  "A hash turns data into a fixed string that cannot be reversed.",
-  "Salting a password makes stolen hashes much harder to crack.",
-  "Hashcat and John the Ripper test how weak passwords are.",
-  "Social engineering hacks people instead of computers.",
-  "A zero-day is a flaw the vendor has not patched yet.",
-  "SQL injection sneaks database commands into a web form.",
-  "Cross-site scripting runs an attacker's code in your browser.",
-  "A VPN encrypts your traffic when you use public Wi-Fi.",
-  "HTTPS uses TLS to encrypt data between you and a website.",
-  "Port 22 is SSH, the secure way to log in to remote systems.",
-  "Port 443 carries encrypted web traffic over HTTPS.",
-  "A brute force attack tries every password until one works.",
-  "Account lockout slows down attackers who guess passwords.",
-  "Malware is any software built to harm a computer.",
-  "A keylogger secretly records everything you type.",
-  "Antivirus looks for known malware by its signature.",
-  "A honeypot is a fake system built to catch attackers.",
-  "Red teams attack, blue teams defend, and purple teams share notes.",
-  "Penetration testers break in with permission to find weak spots.",
-  "Always get written permission before you test a system.",
-  "The CIA triad stands for confidentiality, integrity, and availability.",
-  "Kali Linux comes packed with tools for security testing.",
-  "Metasploit helps testers check if a system can be exploited.",
-  "A man-in-the-middle attack secretly sits between two devices.",
-  "A denial of service attack floods a target until it goes down.",
-  "A botnet is a network of infected computers under one control.",
-  "Patching quickly closes holes before attackers find them.",
-  "Shoulder surfing is stealing a password by watching someone type.",
-  "Tailgating is following someone through a locked door.",
-  "Encryption scrambles data so only the right key can read it.",
-  "Public key cryptography uses a public key and a private key.",
-  "A digital certificate proves a website is who it claims to be.",
-  "Logs help investigators rebuild what happened after an attack.",
-  "A SIEM collects logs from many systems in one place.",
-  "Least privilege limits the damage when an account is hacked.",
-  "Offline backups survive a ransomware attack.",
-  "Codes from an authenticator app are safer than text messages.",
-  "Never plug in a USB drive you found in a parking lot.",
-  "Capture the flag games are a fun way to practice hacking legally.",
-  "The National Cyber League lets students compete in security challenges.",
-  "OSINT means gathering information from public sources.",
-  "A vulnerability scanner checks systems for known weaknesses.",
-  "Always lock your computer before you walk away from your desk."
-];
+const $ = (id) => document.getElementById(id);
 
-const SENTENCES = WINDOWS_SENTENCES.concat(HACKING_SENTENCES);
-
-// ---------- No repeats ----------
+// ================= No repeats =================
 // Sentences come out of a shuffled "bag". Nothing repeats until all 100 have been used.
-// The bag is saved in the browser, so reloading the page doesn't bring old sentences back.
 const BAG_KEY = "eddy-typing-bag";
-const RECENT = 8;   // when a new bag starts, keep the last 8 sentences out of its first 8 spots
+const RECENT = 8;
+let bag = [], recent = [];
 
 function shuffle(list) {
   for (let i = list.length - 1; i > 0; i--) {
@@ -275,16 +214,16 @@ function shuffle(list) {
   return list;
 }
 
-let bag = [], recent = [];
-try {
-  const saved = JSON.parse(localStorage.getItem(BAG_KEY));
-  if (saved && Array.isArray(saved.bag) && saved.total === SENTENCES.length) { bag = saved.bag; recent = saved.recent || []; }
-} catch (e) { /* storage blocked: the bag just lives in memory */ }
+function loadBag() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(BAG_KEY));
+    if (saved && Array.isArray(saved.bag) && saved.total === SENTENCES.length) { bag = saved.bag; recent = saved.recent || []; }
+  } catch (e) { /* storage blocked: the bag just lives in memory */ }
+}
 
 function nextSentence() {
   if (bag.length === 0) {
     bag = shuffle([...Array(SENTENCES.length).keys()]);
-    // move anything used recently away from the front of the new bag
     const fresh = bag.filter(i => !recent.includes(i));
     const used  = bag.filter(i => recent.includes(i));
     bag = fresh.slice(0, RECENT).concat(used, fresh.slice(RECENT));
@@ -292,11 +231,10 @@ function nextSentence() {
   const index = bag.shift();
   recent = recent.concat(index).slice(-RECENT);
   try { localStorage.setItem(BAG_KEY, JSON.stringify({ bag, recent, total: SENTENCES.length })); } catch (e) {}
-  return SENTENCES[index];
+  return { index, text: SENTENCES[index] };
 }
 
-// Decide what to tell the person once they finish
-// The message depends on how much you won or lost by (diff = your WPM minus Eddy's)
+// ================= Messages =================
 function verdict(wpm, accuracy) {
   const diff = wpm - EDDY_WPM;
   if (accuracy < MIN_ACCURACY) {
@@ -331,7 +269,6 @@ function verdict(wpm, accuracy) {
     text: `${wpm} WPM. Eddy edges you out by a hair. You're one round away.` };
 }
 
-// A fun title for your speed
 function rankFor(wpm) {
   if (wpm >= 90) return "Elite Hacker";
   if (wpm >= 70) return "Pen Tester";
@@ -341,12 +278,13 @@ function rankFor(wpm) {
   return "Keyboard Rookie";
 }
 
-// Your best clean score, saved in this browser only
-const BEST_KEY = "eddy-typing-best";
-function recordBest(wpm, accuracy) {
+// Your best clean score, saved in this browser only, kept separate for each name
+// (so friends sharing one computer don't see each other's best)
+function recordBest(wpm, accuracy, name) {
+  const BEST_KEY = "eddy-typing-best:" + (name || "").toLowerCase();
   let best = 0;
   try { best = parseInt(localStorage.getItem(BEST_KEY), 10) || 0; } catch (e) {}
-  if (accuracy < MIN_ACCURACY) return { best, isNew: false };   // sloppy runs don't count
+  if (accuracy < MIN_ACCURACY) return { best, isNew: false };
   const isNew = wpm > best;
   if (isNew) {
     best = wpm;
@@ -355,7 +293,6 @@ function recordBest(wpm, accuracy) {
   return { best, isNew };
 }
 
-// Bars for "how you compare"
 function comparisonRows(wpm) {
   return [
     { label: "You", wpm, you: true },
@@ -366,12 +303,61 @@ function comparisonRows(wpm) {
   ];
 }
 
-// The engine: handles the sentence, colouring letters, timing and scoring.
-// Each design plugs in its own look through the callbacks.
-function TypingTest({ sentenceEl, inputEl, onStart, onTick, onFinish, onReset }) {
-  let target = "", startTime = null, timer = null, finished = false;
+// ================= Talking to the backend =================
+async function post(path, body) {
+  const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return res.json();
+}
 
-  const pick = nextSentence;
+// Draw the top 10. Names are added as plain text (never as HTML), so nobody can sneak code in.
+async function loadLeaderboard(highlight) {
+  if (!api) return;
+  let data;
+  try { data = await (await fetch("/api/scores")).json(); } catch (e) { return; }
+  const list = (data.top || []).map(r => ({ name: r.name, wpm: r.wpm, rounds: r.rounds }));
+  list.push({ name: "Eddy", wpm: EDDY_WPM, eddy: true });
+  list.sort((a, b) => b.wpm - a.wpm);
+  const board = $("board");
+  board.textContent = "";
+  if (list.length === 1) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "No scores yet. Be the first to take on Eddy.";
+    board.appendChild(li);
+  }
+  list.forEach((r, i) => {
+    const li = document.createElement("li");
+    if (r.eddy) li.className = "eddy";
+    else if (highlight && r.name.toLowerCase() === highlight.toLowerCase()) li.className = "me";
+    const pos = document.createElement("span"); pos.className = "pos"; pos.textContent = i + 1;
+    const nm = document.createElement("span"); nm.className = "who-name"; nm.textContent = r.eddy ? "Eddy (the one to beat)" : r.name;
+    const sc = document.createElement("span"); sc.className = "score"; sc.textContent = `${r.wpm} WPM`;
+    if (!r.eddy) {
+      const rd = document.createElement("span"); rd.className = "rounds";
+      rd.textContent = r.rounds === 1 ? "1 round" : `${r.rounds} rounds`;
+      sc.appendChild(rd);
+    }
+    li.append(pos, nm, sc);
+    board.appendChild(li);
+  });
+}
+
+// ================= Name =================
+const NAME_KEY = "eddy-typing-name";
+function cleanName(raw) { return raw.split(/\s+/).filter(Boolean).join(" "); }
+function nameIsValid(name) { return NAME_PATTERN.test(name); }
+
+function checkName() {
+  const name = cleanName($("playerName").value);
+  const hint = $("nameHint");
+  if (!name) { hint.textContent = "Add a name to get on the leaderboard."; hint.className = ""; }
+  else if (!nameIsValid(name)) { hint.textContent = "Use 2 to 20 letters, numbers, spaces, dots, dashes or underscores."; hint.className = "bad"; }
+  else { hint.textContent = ""; hint.className = ""; try { localStorage.setItem(NAME_KEY, name); } catch (e) {} }
+}
+
+// ================= The typing engine =================
+function TypingTest({ sentenceEl, inputEl, onStart, onTick, onFinish, onReset }) {
+  let target = "", index = -1, startTime = null, timer = null, finished = false;
 
   function draw() {
     const typed = inputEl.value;
@@ -393,11 +379,12 @@ function TypingTest({ sentenceEl, inputEl, onStart, onTick, onFinish, onReset })
     const minutes = seconds / 60;
     const wpm = minutes > 0 ? Math.round((correct / 5) / minutes) : 0;   // 1 word = 5 characters
     const accuracy = typed.length ? Math.round((correct / typed.length) * 100) : 100;
-    return { wpm, accuracy, seconds, progress: Math.min(typed.length / target.length, 1), target };
+    return { wpm, accuracy, seconds, typed, target, index };
   }
 
   function reset() {
-    target = pick();
+    const next = nextSentence();
+    target = next.text; index = next.index;
     startTime = null; finished = false;
     clearInterval(timer);
     inputEl.value = ""; inputEl.disabled = false;
@@ -411,7 +398,7 @@ function TypingTest({ sentenceEl, inputEl, onStart, onTick, onFinish, onReset })
     if (inputEl.value.length > target.length) inputEl.value = inputEl.value.slice(0, target.length);
     if (startTime === null) {
       startTime = Date.now();
-      onStart && onStart();
+      onStart && onStart(index);
       timer = setInterval(() => onTick && onTick(stats()), 100);
     }
     draw();
@@ -423,24 +410,52 @@ function TypingTest({ sentenceEl, inputEl, onStart, onTick, onFinish, onReset })
       inputEl.disabled = true;
       const v = verdict(s.wpm, s.accuracy);
       v.rank = rankFor(s.wpm);
-      const b = recordBest(s.wpm, s.accuracy);
+      const b = recordBest(s.wpm, s.accuracy, cleanName($("playerName").value));
       v.bestLine = b.isNew ? `New personal best: ${b.best} WPM` : (b.best ? `Your best: ${b.best} WPM` : "");
       onFinish && onFinish(s, v);
     }
   });
 
-  return { reset, stats };
+  return { reset };
 }
 
-
-const $ = (id) => document.getElementById(id);
+// ================= Wire it all up =================
 $("eddyNum").textContent = EDDY_WPM;
 const result = $("result");
 const youSide = $("youSide");
+let roundToken = null;     // the server's ticket for this round (a Promise)
+
+async function submitScore(s) {
+  const saved = $("saved");
+  saved.className = "saved no";
+  if (!api) { saved.textContent = ""; return; }
+  const name = cleanName($("playerName").value);
+  if (!nameIsValid(name)) { saved.textContent = "Add your name above to get on the leaderboard next round."; return; }
+  if (s.accuracy < MIN_ACCURACY) { saved.textContent = "Sloppy runs don't go on the leaderboard."; return; }
+  saved.textContent = "Saving your score...";
+  try {
+    const token = await roundToken;
+    if (!token) throw new Error("no round");
+    const res = await post("/api/score", { token, name, typed: s.typed });
+    if (res.saved) {
+      saved.className = "saved";
+      saved.textContent = `Saved for ${res.name}: ${res.wpm} WPM. You're #${res.place} on the leaderboard.`;
+      loadLeaderboard(res.name);
+    } else {
+      saved.textContent = res.reason || "Couldn't save this one.";
+    }
+  } catch (e) {
+    saved.textContent = "Couldn't reach the leaderboard. Your score still counts here.";
+  }
+}
 
 const test = TypingTest({
   sentenceEl: $("sentence"),
   inputEl: $("input"),
+  onStart(index) {
+    // Ask the server to start its own clock for this round
+    roundToken = api ? post("/api/round", { index }).then(r => r.token).catch(() => null) : null;
+  },
   onTick(s) {
     $("wpm").textContent = s.wpm;
     $("acc").textContent = s.accuracy;
@@ -458,17 +473,50 @@ const test = TypingTest({
     ).join("");
     result.className = v.tone;
     result.style.display = "block";
+    submitScore(s);
   },
   onReset() {
+    roundToken = null;
     $("wpm").textContent = "0"; $("acc").textContent = "100"; $("time").textContent = "0.0";
     youSide.classList.remove("ahead");
     result.style.display = "none";
   }
 });
-// The sentence never needs Enter, so block it (keeps the box to the sentence only)
+
+// The sentence never needs Enter, so block it
 $("input").addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
 $("again").addEventListener("click", test.reset);
-test.reset();
+$("playerName").addEventListener("input", checkName);
+
+async function start() {
+  // 1. Load the sentences
+  try {
+    const data = await (await fetch("sentences.json")).json();
+    SENTENCES = data.windows.concat(data.hacking);
+  } catch (e) {
+    const err = $("loadError");
+    err.hidden = false;
+    err.textContent = "Couldn't load the sentences. Open this page from the website, not as a file on your computer.";
+    return;
+  }
+  loadBag();
+
+  // 2. See if the leaderboard backend is running (it isn't on GitHub Pages)
+  try {
+    const res = await fetch("/api/scores");
+    api = res.ok && (res.headers.get("content-type") || "").includes("application/json");
+  } catch (e) { api = false; }
+  if (api) {
+    $("who").style.display = "block";
+    $("leaders").style.display = "block";
+    try { $("playerName").value = localStorage.getItem(NAME_KEY) || ""; } catch (e) {}
+    checkName();
+    loadLeaderboard(cleanName($("playerName").value));
+  }
+
+  test.reset();
+}
+start();
 </script>
 </body>
 </html>
